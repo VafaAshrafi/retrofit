@@ -231,6 +231,8 @@ final class OkHttpCall<T> implements Call<T> {
         // Buffer the entire body to avoid future I/O.
         ResponseBody bufferedBody = Utils.buffer(rawBody);
         return Response.error(bufferedBody, rawResponse);
+      } catch (IOException e){
+        throw new CustomIoException(e);
       } finally {
         rawBody.close();
       }
@@ -304,7 +306,7 @@ final class OkHttpCall<T> implements Call<T> {
   static final class ExceptionCatchingResponseBody extends ResponseBody {
     private final ResponseBody delegate;
     private final BufferedSource delegateSource;
-    @Nullable IOException thrownException;
+    @Nullable CustomIoException thrownException;
 
     ExceptionCatchingResponseBody(ResponseBody delegate) {
       this.delegate = delegate;
@@ -316,7 +318,7 @@ final class OkHttpCall<T> implements Call<T> {
                   try {
                     return super.read(sink, byteCount);
                   } catch (IOException e) {
-                    thrownException = e;
+                    thrownException = new CustomIoException(e);
                     throw e;
                   }
                 }
@@ -343,7 +345,7 @@ final class OkHttpCall<T> implements Call<T> {
       delegate.close();
     }
 
-    void throwIfCaught() throws IOException {
+    void throwIfCaught() throws CustomIoException {
       if (thrownException != null) {
         throw thrownException;
       }
